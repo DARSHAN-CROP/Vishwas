@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="gu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#5B4BDB"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon.png">
+<title>વિશ્વાસ - Milestone Payment Tracker</title>
+<style>
+:root{--p:#5B4BDB;--g:#1E9E63;--r:#D64545;--a:#E8A200;--ink:#1b1b24;--mut:#6b6b7a;--bg:#f5f4fa}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Noto Sans Gujarati",sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--p);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:5}
+header h1{font-size:19px;margin:0;flex:1}header button{background:#fff3;border:0;color:#fff;padding:8px 12px;border-radius:10px;font-size:14px}
+main{max-width:720px;margin:0 auto;padding:14px 14px 60px}
+.card{background:#fff;border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px #0001}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.grow{flex:1;min-width:0}.big{font-weight:700}.muted{color:var(--mut);font-size:13px}
+.btn{padding:11px 14px;border:0;border-radius:12px;background:var(--p);color:#fff;font-size:15px;font-weight:600;margin-top:8px}.btn.full{width:100%}.btn.grey{background:#ecebf3;color:var(--ink)}.btn.green{background:var(--g)}.btn.red{background:var(--r)}.btn.wa{background:#25D366}
+input,select{width:100%;padding:12px;border:1px solid #d9d8e4;border-radius:10px;font-size:16px;margin-top:8px;background:#fff}
+.lbl{font-size:13px;color:var(--mut);margin-top:10px}
+.pill{font-size:12px;padding:3px 9px;border-radius:99px;background:#ecebf3;color:var(--ink);white-space:nowrap}.pill.ok{background:#e4f6ec;color:var(--g)}.pill.warn{background:#fff1d6;color:#9a6a00}.pill.bad{background:#fde8e8;color:var(--r)}.pill.blue{background:#e7e5fb;color:var(--p)}
+.bar{height:10px;border-radius:6px;background:#e6e5ef;overflow:hidden;margin-top:8px;display:flex}.bar i{display:block;height:100%}
+.ms{border-top:1px solid #eeedf5;padding:12px 0}.ms:first-child{border-top:0}
+.score{font-size:30px;font-weight:800;color:var(--p)}
+.hero{text-align:center;padding:26px 14px}.hero h2{margin:6px 0}
+@media print{header,.noprint{display:none!important}}
+</style></head><body>
+<header><h1 id="ttl"></h1><button id="acct"></button><button id="lang"></button></header>
+<main id="m"></main>
+<script src="firebase-config.js"></script>
+<script>
+var gu=true,ME=null,DEALS=[],cur=null,view="home",CLIENT=null,newMs=[];
+var T={
+app:["વિશ્વાસ","Vishwas"],tag:["Freelancers માટે milestone payment tracker","Milestone payment tracker for freelancers"],
+signin:["Google થી શરૂ કરો","Start with Google"],signout:["Sign out","Sign out"],
+intro1:["કામ milestones માં વહેંચો","Split the work into milestones"],intro2:["Client લિંક પર જોઈને approve કરે, login વગર","Client approves on a link, no login"],intro3:["સમયસર ડિલિવરી = Trust score વધે","On-time delivery raises your trust score"],
+mydeals:["મારા deals","My deals"],newdeal:["+ નવો deal","+ New deal"],nodeals:["હજી કોઈ deal નથી","No deals yet"],
+title:["પ્રોજેક્ટનું નામ","Project name"],client:["Client નું નામ","Client name"],cphone:["Client નો WhatsApp નંબર (વૈકલ્પિક, 91 સાથે)","Client WhatsApp number (optional, with 91)"],
+total:["કુલ રકમ (₹)","Total amount (₹)"],tmpl:["Milestones ની રીત","Milestone plan"],t1:["50% શરૂઆતમાં + 50% અંતે","50% start + 50% end"],t2:["30% + 40% + 30%","30% + 40% + 30%"],t3:["ત્રણ સરખા ભાગ","Three equal parts"],t4:["એક જ (પૂરું થયે)","One (on completion)"],
+mtitle:["Milestone નું નામ","Milestone name"],mamt:["રકમ (₹)","Amount (₹)"],mdue:["છેલ્લી તારીખ","Due date"],
+create:["Deal બનાવો","Create deal"],cancel:["રદ","Cancel"],back:["← પાછા","← Back"],
+sumbad:["Milestones ની રકમનો સરવાળો કુલ રકમ જેટલો હોવો જોઈએ","Milestone amounts must add up to the total"],needall:["બધી વિગત ભરો","Fill all details"],
+st_pending:["બાકી","Pending"],st_delivered:["ડિલિવર થયું - approval બાકી","Delivered - awaiting approval"],st_approved:["Client એ approve કર્યું","Client approved"],st_paid:["પૈસા મળ્યા ✅","Paid ✅"],
+deliver:["ડિલિવર કર્યું","Mark delivered"],paid:["પૈસા મળ્યા","Mark paid"],ontime:["સમયસર","On time"],late:["મોડું","Late"],due:["તારીખ","Due"],daysleft:["%d દિવસ બાકી","%d days left"],overdue:["%d દિવસ મોડું","%d days overdue"],today:["આજે છેલ્લી તારીખ","Due today"],
+trust:["Trust score","Trust score"],trustsub:["%d માંથી %d milestones સમયસર","%d of %d milestones on time"],notrust:["હજી કોઈ ડિલિવરી નથી","No deliveries yet"],
+copylink:["Client લિંક કૉપી કરો","Copy client link"],sharewa:["WhatsApp પર મોકલો","Send on WhatsApp"],remind:["Client ને રિમાઇન્ડર","Remind client"],copied:["કૉપી થયું","Copied"],
+del:["Deal કાઢી નાખો","Delete deal"],sure:["ખરેખર કાઢી નાખવું છે?","Really delete?"],
+c_head:["Freelancer: %s","Freelancer: %s"],c_approve:["Approve કરો","Approve"],c_name:["તમારું નામ","Your name"],c_by:["%s એ approve કર્યું","Approved by %s"],c_unknown:["આ deal મળ્યો નથી","Deal not found"],
+c_note:["Freelancer ડિલિવર કરે એટલે અહીં Approve દેખાશે. Approve કરવાથી કામ તમારી તરફથી સ્વીકાર્યું ગણાય; ચુકવણી તમે freelancer ને સીધી (UPI) કરો.","The Approve button appears once the freelancer delivers. Approving means you accept the work; pay the freelancer directly (UPI)."],
+about:["DARSHAN CORPORATION ના Darshankumar Savsani દ્વારા","By Darshankumar Savsani, DARSHAN CORPORATION"],
+upi:["તમારું UPI ID (client ને દેખાશે)","Your UPI ID (shown to client)"],total_l:["કુલ","Total"],received:["મળ્યા","Received"],
+loading:["લોડ થાય છે…","Loading…"],err:["કંઈક ભૂલ થઈ: ","Something went wrong: "]
+};
+function t(k){return T[k]?T[k][gu?0:1]:k}
+function f(k){var a=[].slice.call(arguments,1),s=t(k);a.forEach(function(x){s=s.replace(/%[sd]/,x)});return s}
+function $(s){return document.querySelector(s)}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function el(h){var d=document.createElement("div");d.innerHTML=h;return d.firstChild}
+function money(n){n=Math.round(n);var s=String(Math.abs(n)),l=s.slice(-3),r=s.slice(0,-3);if(r)l=r.replace(/\B(?=(\d{2})+(?!\d))/g,",")+","+l;return "₹"+(n<0?"-":"")+l}
+function rid(n){var c="abcdefghijkmnpqrstuvwxyz23456789",o="";var a=new Uint32Array(n);crypto.getRandomValues(a);for(var i=0;i<n;i++)o+=c[a[i]%c.length];return o}
+function today(){var d=new Date();d.setHours(0,0,0,0);return d}
+function dleft(due){return Math.round((new Date(due+"T00:00:00")-today())/864e5)}
+function dfmt(d){return new Date(d.length<=10?d+"T00:00:00":d).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})}
+function sumPaid(d){return d.milestones.filter(function(m){return m.status==="paid"}).reduce(function(a,m){return a+m.amt},0)}
+function trustOf(list){var del=0,on=0;list.forEach(function(d){d.milestones.forEach(function(m){if(m.deliveredAt){del++;if(m.deliveredAt.slice(0,10)<=m.due)on++}})});return{delivered:del,onTime:on,score:del?Math.round(on*100/del):null}}
+function stOf(d,m,cl){if(m.status==="paid")return"paid";if(cl&&cl[m.id])return"approved";return m.status}
+function link(id){return location.origin+location.pathname.replace(/[^\/]*$/,"")+"?d="+id}
+/* ---------- data layer ---------- */
+var DB=null;
+async function initDB(){
+ if(window.VISHWAS_MOCK){DB=window.VISHWAS_MOCK;return}
+ if(!window.FIREBASE_CONFIG){DB=null;return}
+ var V="10.12.2";
+ var m=await Promise.all([import("https://www.gstatic.com/firebasejs/"+V+"/firebase-app.js"),import("https://www.gstatic.com/firebasejs/"+V+"/firebase-auth.js"),import("https://www.gstatic.com/firebasejs/"+V+"/firebase-firestore.js")]);
+ var app=m[0].initializeApp(window.FIREBASE_CONFIG),A=m[1],F=m[2],auth=A.getAuth(app),db=F.getFirestore(app);
+ DB={
+  onAuth:function(cb){A.onAuthStateChanged(auth,cb)},
+  signIn:function(){return A.signInWithPopup(auth,new A.GoogleAuthProvider())},
+  signOut:function(){return A.signOut(auth)},
+  watchDeals:function(uid,cb){return F.onSnapshot(F.query(F.collection(db,"deals"),F.where("owner","==",uid)),function(s){cb(s.docs.map(function(x){var d=x.data();var o=JSON.parse(d.json);o.id=x.id;o._client=d.client||{};return o}))})},
+  saveDeal:function(deal,uid){var c=Object.assign({},deal);delete c._client;return F.setDoc(F.doc(db,"deals",deal.id),{owner:uid,json:JSON.stringify(c),trust:deal._trust||null},{merge:true}).then(function(){})},
+  initDeal:function(deal,uid){var c=Object.assign({},deal);delete c._client;return F.setDoc(F.doc(db,"deals",deal.id),{owner:uid,json:JSON.stringify(c),client:{}})},
+  removeDeal:function(id){return F.deleteDoc(F.doc(db,"deals",id))},
+  watchOne:function(id,cb){return F.onSnapshot(F.doc(db,"deals",id),function(s){if(!s.exists())return cb(null);var d=s.data(),o=JSON.parse(d.json);o.id=s.id;o._client=d.client||{};o._trust=d.trust||null;cb(o)},function(){cb(null)})},
+  approve:function(id,mid,name){var u={};u["client."+mid]={name:name,ts:Date.now()};return F.updateDoc(F.doc(db,"deals",id),u)}
+ };
+}
+/* ---------- views ---------- */
+function render(){
+ $("#ttl").textContent=t("app");$("#lang").textContent=gu?"English":"ગુજરાતી";
+ $("#acct").textContent=ME?t("signout"):"";$("#acct").style.display=ME?"":"none";
+ var m=$("#m");m.innerHTML="";
+ var q=new URLSearchParams(location.search).get("d");
+ if(q)return vClient(m,q);
+ if(!DB)return m.appendChild(el('<div class="card">…</div>'));
+ if(!ME)return vIntro(m);
+ if(view==="new")return vNew(m);
+ if(view==="deal"&&cur)return vDeal(m);
+ vHome(m)}
+function vIntro(m){
+ m.appendChild(el('<div class="card hero"><div style="font-size:44px">🤝</div><h2>'+t("app")+'</h2><div class="muted">'+t("tag")+'</div><div style="text-align:left;margin:16px 0" class="muted">✅ '+t("intro1")+'<br>✅ '+t("intro2")+'<br>✅ '+t("intro3")+'</div><button class="btn full" id="si">'+t("signin")+'</button></div>'));
+ $("#si").onclick=function(){DB.signIn().catch(function(e){alert(t("err")+e.message)})};
+ m.appendChild(el('<div class="muted" style="text-align:center">'+t("about")+'</div>'))}
+function vHome(m){
+ var tr=trustOf(DEALS);
+ m.appendChild(el('<div class="card"><div class="muted">'+t("trust")+'</div><div class="score">'+(tr.score==null?"–":tr.score+"%")+'</div><div class="muted">'+(tr.score==null?t("notrust"):f("trustsub",tr.delivered,tr.onTime))+'</div></div>'));
+ var b=el('<button class="btn full">'+t("newdeal")+'</button>');b.onclick=function(){view="new";newMs=[];render()};m.appendChild(b);
+ m.appendChild(el('<div class="big" style="margin:16px 0 8px">'+t("mydeals")+'</div>'));
+ if(!DEALS.length)m.appendChild(el('<div class="muted" style="text-align:center">'+t("nodeals")+'</div>'));
+ DEALS.slice().sort(function(a,b){return b.created-a.created}).forEach(function(d){
+  var paid=sumPaid(d),pc=Math.round(paid*100/d.total),late=d.milestones.filter(function(x){return x.status!=="paid"&&!x.deliveredAt&&dleft(x.due)<0}).length;
+  var c=el('<div class="card" style="cursor:pointer"><div class="row"><div class="grow"><div class="big">'+esc(d.title)+'</div><div class="muted">'+esc(d.clientName)+'</div></div><div class="big">'+money(d.total)+'</div></div><div class="bar"><i style="width:'+pc+'%;background:var(--g)"></i></div><div class="row" style="margin-top:8px"><span class="muted">'+t("received")+' '+money(paid)+'</span>'+(late?'<span class="pill bad">'+late+' '+t("late")+'</span>':"")+'</div></div>');
+  c.onclick=function(){cur=d.id;view="deal";render()};m.appendChild(c)});
+ m.appendChild(el('<div class="muted" style="text-align:center;margin-top:20px">'+t("about")+'</div>'))}
+function setTmpl(k,total){var p={1:[[50,"Start"],[50,"Final"]],2:[[30,"Start"],[40,"Midway"],[30,"Final"]],3:[[34,"Part 1"],[33,"Part 2"],[33,"Part 3"]],4:[[100,"Complete"]]}[k];
+ var left=total,out=[];p.forEach(function(x,i){var a=i===p.length-1?left:Math.round(total*x[0]/100);left-=a;var d=new Date();d.setDate(d.getDate()+7*(i+1));out.push({id:rid(5),title:x[1],amt:a,due:d.toISOString().slice(0,10)})});return out}
+function vNew(m){
+ var c=el('<div class="card"><input id="ti" placeholder="'+t("title")+'"><input id="cn" placeholder="'+t("client")+'"><input id="cp" inputmode="numeric" placeholder="'+t("cphone")+'"><input id="up" placeholder="'+t("upi")+'"><input id="to" type="number" inputmode="numeric" placeholder="'+t("total")+'"><div class="lbl">'+t("tmpl")+'</div><select id="tp"><option value="1">'+t("t1")+'</option><option value="2">'+t("t2")+'</option><option value="3">'+t("t3")+'</option><option value="4">'+t("t4")+'</option></select><div id="ms"></div><button class="btn full" id="ok">'+t("create")+'</button><button class="btn full grey" id="no">'+t("cancel")+'</button></div>');
+ m.appendChild(c);
+ function draw(){var h="";newMs.forEach(function(x,i){h+='<div class="ms"><input data-i="'+i+'" data-k="title" value="'+esc(x.title)+'" placeholder="'+t("mtitle")+'"><div class="row"><input style="flex:1" data-i="'+i+'" data-k="amt" type="number" inputmode="numeric" value="'+x.amt+'" placeholder="'+t("mamt")+'"><input style="flex:1" data-i="'+i+'" data-k="due" type="date" value="'+x.due+'"></div></div>'});
+  c.querySelector("#ms").innerHTML=h;c.querySelectorAll("#ms input").forEach(function(inp){inp.oninput=function(){var x=newMs[inp.dataset.i];x[inp.dataset.k]=inp.dataset.k==="amt"?(parseInt(inp.value,10)||0):inp.value}})}
+ function regen(){var tot=parseInt(c.querySelector("#to").value,10)||0;newMs=tot>0?setTmpl(c.querySelector("#tp").value,tot):[];draw()}
+ c.querySelector("#to").oninput=regen;c.querySelector("#tp").onchange=regen;if(newMs.length)draw();
+ c.querySelector("#no").onclick=function(){view="home";render()};
+ c.querySelector("#ok").onclick=function(){var ti=c.querySelector("#ti").value.trim(),cn=c.querySelector("#cn").value.trim(),tot=parseInt(c.querySelector("#to").value,10)||0;
+  if(!ti||!cn||!(tot>0)||!newMs.length)return alert(t("needall"));
+  if(newMs.some(function(x){return !x.title||!(x.amt>0)||!x.due}))return alert(t("needall"));
+  if(newMs.reduce(function(a,x){return a+x.amt},0)!==tot)return alert(t("sumbad"));
+  var d={id:rid(12),title:ti,clientName:cn,clientPhone:c.querySelector("#cp").value.replace(/\D/g,""),upi:c.querySelector("#up").value.trim(),freelancer:(ME.displayName||ME.email||""),total:tot,created:Date.now(),milestones:newMs.map(function(x){return{id:x.id,title:x.title,amt:x.amt,due:x.due,status:"pending"}})};
+  DB.initDeal(d,ME.uid).then(function(){cur=d.id;view="deal";render()}).catch(function(e){alert(t("err")+e.message)})}}
+function curDeal(){return DEALS.filter(function(d){return d.id===cur})[0]}
+function saveDeal(d){d._trust=trustOf(DEALS);return DB.saveDeal(d,ME.uid)}
+function waText(d,kind,ms){var l=link(d.id);if(kind==="share")return (gu?"નમસ્તે "+d.clientName+", આપણા કામ '"+d.title+"' ના milestones અને પ્રગતિ અહીં જુઓ અને approve કરો: ":"Hello "+d.clientName+", see the milestones and progress for '"+d.title+"' here and approve: ")+l;
+ return (gu?"નમસ્તે "+d.clientName+", '"+d.title+"' નો milestone '"+ms.title+"' ડિલિવર થઈ ગયો છે. કૃપા કરી અહીં approve કરશો: ":"Hello "+d.clientName+", milestone '"+ms.title+"' of '"+d.title+"' is delivered. Please approve here: ")+l}
+function wa(d,txt){var n=d.clientPhone;window.open("https://wa.me/"+(n||"")+"?text="+encodeURIComponent(txt),"_blank")}
+function vDeal(m){var d=curDeal();if(!d){view="home";return render()}
+ var bk=el('<button class="btn grey">'+t("back")+'</button>');bk.onclick=function(){view="home";render()};m.appendChild(bk);
+ var paid=sumPaid(d),pc=Math.round(paid*100/d.total);
+ m.appendChild(el('<div class="card"><div class="big" style="font-size:20px">'+esc(d.title)+'</div><div class="muted">'+esc(d.clientName)+'</div><div class="row" style="margin-top:8px"><div class="grow"><div class="muted">'+t("total_l")+'</div><div class="big">'+money(d.total)+'</div></div><div class="grow"><div class="muted">'+t("received")+'</div><div class="big" style="color:var(--g)">'+money(paid)+'</div></div></div><div class="bar"><i style="width:'+pc+'%;background:var(--g)"></i></div></div>'));
+ var sh=el('<div class="card"><button class="btn wa full" id="w">'+t("sharewa")+'</button><button class="btn grey full" id="cp">'+t("copylink")+'</button></div>');
+ sh.querySelector("#w").onclick=function(){wa(d,waText(d,"share"))};
+ sh.querySelector("#cp").onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(link(d.id));alert(t("copied")+"\n"+link(d.id))};m.appendChild(sh);
+ var cl=d._client||{};
+ d.milestones.forEach(function(x){var st=stOf(d,x,cl),dl=dleft(x.due),late=!x.deliveredAt&&x.status!=="paid"&&dl<0;
+  var due=x.status==="paid"||x.deliveredAt?"":(dl<0?f("overdue",-dl):dl===0?t("today"):f("daysleft",dl));
+  var tag=x.deliveredAt?'<span class="pill '+(x.deliveredAt.slice(0,10)<=x.due?"ok":"warn")+'">'+(x.deliveredAt.slice(0,10)<=x.due?t("ontime"):t("late"))+'</span>':"";
+  var c=el('<div class="card"><div class="row"><div class="grow"><div class="big">'+esc(x.title)+'</div><div class="muted">'+t("due")+': '+dfmt(x.due)+(due?' • <span style="color:'+(late?"var(--r)":"var(--mut)")+'">'+due+'</span>':"")+'</div></div><div class="big">'+money(x.amt)+'</div></div><div class="row" style="margin-top:8px"><span class="pill '+(st==="paid"?"ok":st==="approved"?"blue":st==="delivered"?"warn":"")+'">'+t("st_"+st)+'</span>'+tag+(cl[x.id]?'<span class="muted">'+f("c_by",esc(cl[x.id].name))+'</span>':"")+'</div><div class="row" id="ac"></div></div>');
+  var ac=c.querySelector("#ac");
+  if(x.status==="pending"){var b=el('<button class="btn green">'+t("deliver")+'</button>');b.onclick=function(){x.status="delivered";x.deliveredAt=new Date().toISOString();saveDeal(d).then(function(){wa(d,waText(d,"remind",x))})};ac.appendChild(b)}
+  if(x.status==="delivered"){var r=el('<button class="btn wa">'+t("remind")+'</button>');r.onclick=function(){wa(d,waText(d,"remind",x))};ac.appendChild(r);var p=el('<button class="btn">'+t("paid")+'</button>');p.onclick=function(){x.status="paid";x.paidAt=new Date().toISOString();saveDeal(d)};ac.appendChild(p)}
+  m.appendChild(c)});
+ var del=el('<button class="btn grey full" style="margin-top:10px;color:var(--r)">'+t("del")+'</button>');del.onclick=function(){if(confirm(t("sure")))DB.removeDeal(d.id).then(function(){view="home";render()})};m.appendChild(del)}
+function vClient(m,id){
+ m.appendChild(el('<div class="muted" id="ld" style="text-align:center">'+t("loading")+'</div>'));
+ if(!DB){return}
+ if(CLIENT)CLIENT();
+ CLIENT=DB.watchOne(id,function(d){
+  m.innerHTML="";if(!d)return m.appendChild(el('<div class="card" style="text-align:center">'+t("c_unknown")+'</div>'));
+  var cl=d._client||{},paid=sumPaid(d),pc=Math.round(paid*100/d.total),tr=d._trust;
+  m.appendChild(el('<div class="card"><div class="big" style="font-size:20px">'+esc(d.title)+'</div><div class="muted">'+f("c_head",esc(d.freelancer))+'</div><div class="big" style="margin-top:8px">'+money(d.total)+'</div><div class="bar"><i style="width:'+pc+'%;background:var(--g)"></i></div><div class="muted" style="margin-top:6px">'+t("received")+' '+money(paid)+'</div></div>'));
+  if(tr&&tr.score!=null)m.appendChild(el('<div class="card"><div class="muted">'+t("trust")+'</div><div class="score">'+tr.score+'%</div><div class="muted">'+f("trustsub",tr.delivered,tr.onTime)+'</div></div>'));
+  if(d.upi)m.appendChild(el('<div class="card muted">UPI: <b style="color:var(--ink)">'+esc(d.upi)+'</b></div>'));
+  d.milestones.forEach(function(x){var st=stOf(d,x,cl),dl=dleft(x.due);
+   var c=el('<div class="card"><div class="row"><div class="grow"><div class="big">'+esc(x.title)+'</div><div class="muted">'+t("due")+': '+dfmt(x.due)+'</div></div><div class="big">'+money(x.amt)+'</div></div><div class="row" style="margin-top:8px"><span class="pill '+(st==="paid"?"ok":st==="approved"?"blue":st==="delivered"?"warn":"")+'">'+t("st_"+st)+'</span>'+(cl[x.id]?'<span class="muted">'+f("c_by",esc(cl[x.id].name))+'</span>':"")+'</div><div id="ac"></div></div>');
+   if(x.status==="delivered"&&!cl[x.id]){var nm=localStorage.getItem("vw_name")||"";var h=el('<div><input id="nm" placeholder="'+t("c_name")+'" value="'+esc(nm)+'"><button class="btn full green">'+t("c_approve")+'</button></div>');
+    h.querySelector("button").onclick=function(){var n=h.querySelector("#nm").value.trim();if(!n)return alert(t("c_name"));localStorage.setItem("vw_name",n);DB.approve(d.id,x.id,n).catch(function(e){alert(t("err")+e.message)})};c.querySelector("#ac").appendChild(h)}
+   m.appendChild(c)});
+  m.appendChild(el('<div class="muted" style="text-align:center;padding:8px">'+t("c_note")+'</div>'));
+  m.appendChild(el('<div class="muted" style="text-align:center">'+t("about")+'</div>'))})}
+$("#lang").onclick=function(){gu=!gu;localStorage.setItem("vw_lang",gu?"gu":"en");render()};
+$("#acct").onclick=function(){DB&&DB.signOut()};
+(async function(){
+ gu=localStorage.getItem("vw_lang")!=="en";
+ try{await initDB()}catch(e){document.body.insertAdjacentHTML("beforeend","<pre>"+e.message+"</pre>")}
+ if(DB){DB.onAuth&&DB.onAuth(function(u){ME=u;if(u){DB.watchDeals(u.uid,function(l){DEALS=l;render()})}else{DEALS=[]}render()})}
+ render();
+ if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){navigator.serviceWorker.register("sw.js").catch(function(){})}
+})();
+</script>
+</body></html>
