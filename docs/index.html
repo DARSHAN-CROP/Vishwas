@@ -72,7 +72,7 @@ async function initDB(){
   onAuth:function(cb){A.onAuthStateChanged(auth,cb)},
   signIn:function(){return A.signInWithPopup(auth,new A.GoogleAuthProvider())},
   signOut:function(){return A.signOut(auth)},
-  watchDeals:function(uid,cb){return F.onSnapshot(F.query(F.collection(db,"deals"),F.where("owner","==",uid)),function(s){cb(s.docs.map(function(x){var d=x.data();var o=JSON.parse(d.json);o.id=x.id;o._client=d.client||{};return o}))})},
+  watchDeals:function(uid,cb){return F.onSnapshot(F.query(F.collection(db,"deals"),F.where("owner","==",uid)),function(s){cb(s.docs.filter(function(x){var d=x.data();return d.kind!=="family"&&d.json}).map(function(x){var d=x.data();var o=JSON.parse(d.json);o.id=x.id;o._client=d.client||{};return o}))})},
   saveDeal:function(deal,uid){var c=Object.assign({},deal);delete c._client;return F.setDoc(F.doc(db,"deals",deal.id),{owner:uid,json:JSON.stringify(c),trust:deal._trust||null},{merge:true}).then(function(){})},
   initDeal:function(deal,uid){var c=Object.assign({},deal);delete c._client;return F.setDoc(F.doc(db,"deals",deal.id),{owner:uid,json:JSON.stringify(c),client:{}})},
   removeDeal:function(id){return F.deleteDoc(F.doc(db,"deals",id))},
